@@ -1,5 +1,7 @@
+'use client'
+
 import { Button } from '@/components/ui/button'
-import { SignInButton } from '@clerk/nextjs'
+import { SignInButton, useUser } from '@clerk/nextjs'
 import Image from 'next/image'
 import Link from 'next/link'
 import path from 'path'
@@ -21,6 +23,9 @@ const menuOptions = [
 ]
 
 const Header = () => {
+
+    const {user} = useUser();
+
     return (
         <div className='flex justify-between items-center p-4'>
             <div className='flex gap-2 items-center'>
@@ -30,18 +35,22 @@ const Header = () => {
 
             <div className='flex gap-8 items-center'>
                 {menuOptions.map((menu, index) => (
-                    <Link href={menu.path}>
+                    <Link  key={index}  href={menu.path}>
                         <h2 className='text-lg hover:scale-105 hover:text-primary transition-all'>{menu.name}</h2>
                     </Link>
                 ))}
             </div>
 
             <div>
-                <SignInButton mode='modal'>
+               {!user ? <SignInButton mode='modal'>
                     <Button>
                         Get Started
                     </Button>
-                </SignInButton>
+                </SignInButton>:
+                <Link href='/create-new-trip'>
+                 <Button>Create New Trip </Button>
+                </Link>
+                }
 
             </div>
         </div>
