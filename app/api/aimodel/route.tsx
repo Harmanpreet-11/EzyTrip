@@ -2,48 +2,143 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from 'openai';
 const openai = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY_DEEPSEEK,
+  apiKey: process.env.OPENROUTER_API_KEY_OPENAI,
 });
 
-const PROMPT= `You are an AI Trip Planner Agent.
+const PROMPT= `You are an AI Trip Planner Agent. Your goal is to help the user plan a trip by **asking one relevant trip-related question at a time**.
 
-Your goal is to help the user plan a trip by **asking one relevant trip-related question at a time**, in the following exact order:
+ Only ask questions about the following details in order, and wait for the user’s answer before asking the next: 
 
-Step 1 → Starting location (source)  
-Step 2 → Destination city or country  
-Step 3 → Group size (Solo, Couple, Family, Friends)  
-Step 4 → Budget (Low, Medium, High)  
-Step 5 → Trip duration (number of days)  
-Step 6 → Travel interests (adventure, sightseeing, cultural, food, nightlife, relaxation, etc.)  
-Step 7 → Special requirements or preferences (if any)
+1. Starting location (source) 
+2. Destination city or country 
+3. Group size (Solo, Couple, Family, Friends) 
+4. Budget (Low, Medium, High) 
+5. Trip duration (number of days) 
+6. Travel interests (e.g., adventure, sightseeing, cultural, food, nightlife, relaxation) 
+7. Special requirements or preferences (if any)
+Do not ask multiple questions at once, and never ask irrelevant questions.
+If any answer is missing or unclear, politely ask the user to clarify before proceeding.
+Always maintain a conversational, interactive style while asking questions.
+Along wth response also send which ui component to display for generative UI for example 'budget/groupSize/TripDuration/Final) , where Final means AI generating complete final outpur
+Once all required information is collected, generate and return a **strict JSON response only** (no explanations or extra text) with following JSON schema:
 
-**Rules**:  
-- Do NOT skip steps.  
-- Wait for the user’s answer before moving to the next step.  
-- If an answer is missing, irrelevant, or unclear, politely ask the user to clarify **before proceeding**.  
-- Keep the tone conversational and interactive.  
-- Along with your message, include the correct UI component identifier for generative UI:  
-  - "source", "destination", "groupSize", "budget", "tripDuration", "interests", "specialReq", "final" 
-  - "final" means all details are collected and the AI will now generate the complete final trip plan.
-**Response format (strict)**:  
-Respond ONLY in the following JSON structure, with no extra text before or after:  
 {
-  "resp": "Your conversational question or final trip plan here",
-  "ui": "source/destination/groupSize/budget/tripDuration/interests/specialReq/final"
+resp:'Text Resp',
+ui:'budget/groupSize/TripDuration/Final)'
 }
 `
 
+const FINAL_PROMPT = `Generate Travel Plan with give details, give me Hotels options list with HotelName, 
+
+Hotel address, Price, hotel image url, geo coordinates, rating, descriptions and  suggest itinerary with placeName, Place Details, Place Image Url,
+
+ Geo Coordinates,Place address, ticket Pricing, Time travel each of the location , with each day plan with best time to visit in JSON format.
+
+ Output Schema:
+
+ {
+
+  "trip_plan": {
+
+    "destination": "string",
+
+    "duration": "string",
+
+    "origin": "string",
+
+    "budget": "string",
+
+    "group_size": "string",
+
+    "hotels": [
+
+      {
+
+        "hotel_name": "string",
+
+        "hotel_address": "string",
+
+        "price_per_night": "string",
+
+        "hotel_image_url": "string",
+
+        "geo_coordinates": {
+
+          "latitude": "number",
+
+          "longitude": "number"
+
+        },
+
+        "rating": "number",
+
+        "description": "string"
+
+      }
+
+    ],
+
+    "itinerary": [
+
+      {
+
+        "day": "number",
+
+        "day_plan": "string",
+
+        "best_time_to_visit_day": "string",
+
+        "activities": [
+
+          {
+
+            "place_name": "string",
+
+            "place_details": "string",
+
+            "place_image_url": "string",
+
+            "geo_coordinates": {
+
+              "latitude": "number",
+
+              "longitude": "number"
+
+            },
+
+            "place_address": "string",
+
+            "ticket_pricing": "string",
+
+            "time_travel_each_location": "string",
+
+            "best_time_to_visit": "string"
+
+          }
+
+        ]
+
+      }
+
+    ]
+
+  }
+
+}`
+
+
+
 export async function POST(req: NextRequest) {
-    const {messages} =   await req.json();
+    const {messages, isFinal } =   await req.json();
 
     try{
       const completion = await openai.chat.completions.create({
-    model: 'deepseek/deepseek-r1-0528:free',
+    model: 'openai/gpt-oss-20b:free',
     response_format:{type:'json_object'},
     messages: [
         {
             role:'system',
-            content: PROMPT
+            content: isFinal?FINAL_PROMPT : PROMPT
         },
         ...messages
     ],

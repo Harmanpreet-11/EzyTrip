@@ -4,11 +4,14 @@ import { Textarea } from '@/components/ui/textarea'
 import axios from 'axios'
 import { Loader, Send } from 'lucide-react'
 import { input } from 'motion/react-client'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import EmptyBoxState from './EmptyBoxState';
 import GroupSizeUI from './GroupSizeUI';
 import { v } from 'convex/values';
 import BudgetUI from './BudgetUI';
+import FinalUI from './FinalUI';
+import { useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 
 type Message = {
     role: string,
@@ -19,7 +22,9 @@ function ChatBox() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [userInput, setUserInput] = useState<string>('');
     const [loading,setLoading] = useState(false);
-
+    const [isFinal,setIsFinal] = useState(false);
+    const [tripDetail,setTripDetail] = useState<TripInfo>()
+    const SaveTripDetail = useMutation(api.tripDetail.CreateTripDetail);
     const onSend = async () => {
         if (!userInput?.trim()) return;
 
@@ -30,17 +35,29 @@ function ChatBox() {
             content:userInput
         }
 
+        
         setMessages((prev: Message[]) => [...prev, newMsg]);
 
         const result = await axios.post('/api/aimodel', {
-            messages: [...messages, newMsg]
+            messages: [...messages, newMsg],
+            isFinal:isFinal
         });
-        setMessages((prev: Message[]) => [...prev, {
+
+        console.log("TRIP", result.data);
+
+        !isFinal && setMessages((prev: Message[]) => [...prev, {
             role: 'assistant',
             content: result?.data.resp,
             ui: result?.data?.ui
         }]);
-        console.log(result.data);
+        
+        // if(isFinal){
+        //     setTripDetail(result?.data?.trip_plan);
+        //     const result = await SaveTripDetail({
+        //         tripId:
+        //         uid:
+        //     })
+        // }
         setLoading(false);
         
     }
@@ -48,12 +65,24 @@ function ChatBox() {
     const RenderGenerativeUI =(ui:string) =>{
         if(ui == 'budget')
         {
-           <BudgetUI />
-        }else if(ui== 'grouSize'){
-           <GroupSizeUI onSelectedOption={()=>{(v:string)=> {setUserInput(v); onSend()}}} />
+            return <BudgetUI onSelectedOption={(v:string)=>{setUserInput(v);onSend()}} />
+        }else if(ui== 'groupSize'){
+            return <GroupSizeUI onSelectedOption={(v:string)=>{setUserInput(v);onSend()}} />
+        } else if(ui == 'Final'){
+            return <FinalUI viewTrip={()=> console.log()} />
         }
         return null;
     }
+
+    useEffect(()=>{
+        const lastMsg = messages[messages.length-1];
+        if(lastMsg?.ui == 'Final')
+        {
+            setIsFinal(true);
+            setUserInput('Great Ok !!')
+            onSend();
+        }
+    }, [messages])
     return (
         <div className='h-[85vh] flex flex-col'>
             { messages ?.length==0 && 
@@ -69,7 +98,7 @@ function ChatBox() {
                         <div className='flex justify-start mt-2' key={index}>
                             <div className='max-w-lg bg-gray-100 text-black px-4 py-2 rounded-l'>
                                { msg.content } 
-                               {RenderGenerativeUI(msg.ui?? '')}
+                               {RenderGenerativeUI(msg.ui??'')}
                             </div>
                         </div>
 
